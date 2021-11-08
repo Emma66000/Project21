@@ -7,47 +7,49 @@ import pprint
 from elasticsearch import Elasticsearch
 
 INDEX_NAME = "myindex_3"
-
+INDEX_SETTINGS = {
+    "mappings":{
+        "properties":{
+            "body": {
+                "type":"text",
+                "term_vector":"yes",
+                "analyzer":"english"
+            }
+        }
+    }
+}
 
 def index_documents(filepath: str, es: Elasticsearch, index: str) -> None:
 
-    """Indexes documents from file."""
-    
-    """
-    if es.indices.exists(index):
-        es.indices.delete(index=index)
-    es.indices.create(index=index)
-    
-    cnt_passage =0
-    file = open(filepath, encoding="utf8")
-    read_tsv=csv.reader(file, delimiter="\t")
-    print("Indexing as began...")
+    """Indexes documents from the file, this function assumes that, in the file documents are separated by \t
 
-    for passage in read_tsv:
-        cnt_passage+=1       
-        print("Indexing in progress", cnt_passage*100/8841823 , "%")
-        print(passage)
-        es.index(index=index,doc_type="_doc",id=int(passage[0]),body=passage[1])
+    Params:
+        :filepath (str): path of the file to parse
+        :es (ElasticSearch): elasticsearch object to use to index documents
+        :index (str): index name to index documents
 
-    print("Indexing Finished.")
     """
+    
     bulk_data = []
     cnt_passage=0
     with open(filepath, encoding="utf8") as docs:
         read_tsv=csv.reader(docs, delimiter="\t")
+
         print("Indexing as began...")
         for passage in read_tsv:
             cnt_passage+=1
             if cnt_passage % int(8841823/100) == 0:
                 print("Indexing in progress", round(cnt_passage*100/8841823) , "%")
             bulk_data.append(
-                {"index": {"_index": index, "_id":int(passage[0])}}
+                {"index": {
+                    "_index": index,
+                    "_id":passage[0]}
+                }
             )
-            bulk_data.append(passage[1])
+            bulk_data.append({"body":passage[1]})
             
             if cnt_passage%(1000)==0 :
-                
-                es.bulk(index=index, body=bulk_data)
+                es.bulk(index=index, doc_type="_doc", body=bulk_data, refresh=True)
                 bulk_data=[]
 
     print("Indexing Finished.")
@@ -110,15 +112,15 @@ def reset_index(es: Elasticsearch) -> None:
     if es.indices.exists(INDEX_NAME):
         es.indices.delete(index=INDEX_NAME)
 
-    es.indices.create(index=INDEX_NAME)
+    es.indices.create(index=INDEX_NAME, body=INDEX_SETTINGS)
 if __name__ == "__main__":
     es = Elasticsearch(timeout=120)
     query={}
     query_terms=[]
-    query=load_queries("2020_manual_evaluation_topics_v1.0.json")
+    query=load_queries("data/2020_manual_evaluation_topics_v1.0.json")
     reset_index(es)
-    index_documents("collection.tsv", es,index=INDEX_NAME)
-    print(es.get(INDEX_NAME,id = 1))
-    query_terms=analyze_query(es, query['81_1'], INDEX_NAME) 
-    print(query_terms)
+    index_documents("data/collection.tsv", es,index=INDEX_NAME)
+    print(es.termvectors(index=INDEX_NAME, id='1'))
+    # query_terms=analyze_query(es, query['81_1'], INDEX_NAME) 
+    # print(query_terms)
 

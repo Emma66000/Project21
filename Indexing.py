@@ -19,6 +19,8 @@ INDEX_SETTINGS = {
     }
 }
 
+COLLECTION_SIZE = 8841823
+
 def index_documents(filepath: str, es: Elasticsearch, index: str) -> None:
 
     """Indexes documents from the file, this function assumes that, in the file documents are separated by \t
@@ -38,8 +40,8 @@ def index_documents(filepath: str, es: Elasticsearch, index: str) -> None:
         print("Indexing as began...")
         for passage in read_tsv:
             cnt_passage+=1
-            if cnt_passage % int(8841823/100) == 0:
-                print("Indexing in progress", round(cnt_passage*100/8841823) , "%")
+            if cnt_passage % int(COLLECTION_SIZE/100) == 0:
+                print("Indexing in progress", round(cnt_passage*100/COLLECTION_SIZE) , "%")
             bulk_data.append(
                 {"index": {
                     "_index": index,
@@ -51,7 +53,7 @@ def index_documents(filepath: str, es: Elasticsearch, index: str) -> None:
             if cnt_passage%(100000)==0 :
                 es.bulk(index=index, doc_type="_doc", body=bulk_data, refresh=True)
                 bulk_data=[]
-            if cnt_passage == 8841823:
+            if cnt_passage == COLLECTION_SIZE:
                 es.bulk(index=index, doc_type="_doc", body=bulk_data, refresh=True)
                 bulk_data=[]
 

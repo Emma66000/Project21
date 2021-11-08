@@ -48,7 +48,10 @@ def index_documents(filepath: str, es: Elasticsearch, index: str) -> None:
             )
             bulk_data.append({"body":passage[1]})
             
-            if cnt_passage%(1000)==0 :
+            if cnt_passage%(100000)==0 :
+                es.bulk(index=index, doc_type="_doc", body=bulk_data, refresh=True)
+                bulk_data=[]
+            if cnt_passage == 8841823:
                 es.bulk(index=index, doc_type="_doc", body=bulk_data, refresh=True)
                 bulk_data=[]
 
@@ -121,6 +124,6 @@ if __name__ == "__main__":
     reset_index(es)
     index_documents("data/collection.tsv", es,index=INDEX_NAME)
     print(es.termvectors(index=INDEX_NAME, id='1'))
-    # query_terms=analyze_query(es, query['81_1'], INDEX_NAME) 
-    # print(query_terms)
+    query_terms=analyze_query(es, query['81_1'], INDEX_NAME) 
+    print(query_terms)
 

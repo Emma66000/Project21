@@ -6,5 +6,7 @@ from elasticsearch.client import Elasticsearch
 
 import Indexing as module
 
-INDEX_NAME = "_myindex"
+INDEX_NAME = module.INDEX_NAME
+
+ 
 

@@ -492,7 +492,7 @@ def prepare_ltr_training_data(
     y=list()
 
     for query in query_ids :
-        print(query)
+        #print(query)
         query_terms = analyze_query(es, all_queries[query],index)
         
         for d_id in all_qrels.get(query,{}):
@@ -561,7 +561,7 @@ def load_qrels(filepath: str) -> Dict[str, List[str]]:
         line = file.readline()
         
         while line:  
-            print(cnt)
+            #print(cnt)
             ln=line.strip().replace('"', "").split(" ")
             if ln[2][0:3]!="CAR" : 
                 key = ln[0]
@@ -591,4 +591,5 @@ if __name__ == "__main__":
    
     _, test = train_test_split(query)
     rankings_ltr = get_rankings(trained_ltr_model(training_data(es,query,qrels)), test, query, es, index=INDEX_NAME, rerank=True)
+    print(rankings_ltr)
 

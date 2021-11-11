@@ -493,7 +493,7 @@ def prepare_ltr_training_data(
     y=list()
 
     for query in query_ids :
-        # print(query)
+        #print(query)
         query_terms = analyze_query(es, all_queries[query],index)
         
         for d_id in all_qrels.get(query,{}):
@@ -562,6 +562,7 @@ def load_qrels(filepath: str) -> Dict[str, List[str]]:
         line = file.readline()
         
         while line:  
+            #print(cnt)
             ln=line.strip().replace('"', "").split(" ")
             if ln[2][0:3]!="CAR" : 
                 key = ln[0]

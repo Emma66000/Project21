@@ -1,15 +1,11 @@
 import csv
 import json
 from typing import Callable, Dict, List, Set, Tuple
-import math
 import numpy as np
-import pprint
 import random
-import time
 from sklearn.linear_model import LinearRegression
 from elasticsearch import Elasticsearch
 from trec_car.read_data import iter_paragraphs
-from threading import Thread
 import logging
 from tqdm import tqdm 
 INDEX_NAME = "index_project"
@@ -46,7 +42,9 @@ FEATURES_QUERY_DOC = [
 FIELDS = ["body"]
 
 COLLECTION_SIZE = 8841823
-log = logging.getLogger("DAT640")
+logging.basicConfig(filename='indexing.log', encoding='utf-8', level=logging.DEBUG)
+
+log = logging.getLogger()
 
 def get_doc_term_freqs(
     es: Elasticsearch, doc_id: str, index: str = INDEX_NAME
@@ -573,7 +571,6 @@ def load_qrels(filepath: str) -> Dict[str, List[str]]:
             cnt+=1
     return d
 
-    es.indices.create(index=INDEX_NAME, body=INDEX_SETTINGS)
 if __name__ == "__main__":
     es = Elasticsearch(timeout=120)
     query={}
@@ -586,7 +583,8 @@ if __name__ == "__main__":
     
     query_terms=analyze_query(es, query['81_1'], INDEX_NAME) 
    # print(query_terms)
-   
+    print("ntm")
+    log.info("Analyze query complete")
     _, test = train_test_split(query)
     log.info("Test train complete")
     trained_data = training_data(es,query,qrels)

@@ -15,6 +15,6 @@ The file is almost 16Gb
 
 For the baseline, you can download files from:
 https://github.com/daltonj/treccastweb/tree/master/2020/baselines
-It is not included because it is not included, don't ask questions.
+
 
 

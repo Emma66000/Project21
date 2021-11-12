@@ -1,5 +1,6 @@
 import csv
 import json
+import re
 from typing import Callable, Dict, List, Set, Tuple
 import math
 import numpy as np
@@ -11,6 +12,14 @@ from elasticsearch import Elasticsearch
 from trec_car.read_data import iter_paragraphs
 from threading import Thread
 from tqdm import tqdm 
+import nltk
+from nltk.corpus import stopwords
+
+
+nltk.download("stopwords")
+nltk.download("averaged_perceptron_tagger")
+STOPWORDS = set(stopwords.words("english"))
+
 INDEX_NAME = "index_project"
 CAR_FILE = "data/paragraphCorpus/dedup.articles-paragraphs.cbor"
 MARCO_FILE = "data/collection.tsv"
@@ -351,9 +360,70 @@ def load_queries(filepath: str) -> Dict[str, str]:
         for n in file:
             key=str(n['number'])+"_"
             for i in n['turn']:
-                d[key+str(i['number'])]=i['manual_rewritten_utterance']
+                d[key+str(i['number'])]=i['raw_utterance']
             key=""
     return d
+
+def load_titles(filepath: str,index:str,es: Elasticsearch, pourcent:int=0.5) -> Dict[str, str]:
+    # TODO
+    d={}
+    key=""
+    with open(filepath,"r", encoding="utf-8") as file :
+        file=json.load(file)
+        for n in file:
+
+            key=str(n['number'])
+            words = f"{n.get('title', '')} {n['turn'][0]['raw_utterance']}".lower()
+
+            words= re.sub(r"[^\w]|_", " ", words).split()
+            d[key] = []
+            for term in words :
+                if term not in STOPWORDS and term not in d[key]:
+                    d[key].append(term)
+                    
+            query_idf={}
+            for term in d[key]:
+                hits = (es.search(index=index,query={"match": {"body": term}},_source=False,size=1,).get("hits", {}).get("hits", {}))
+                doc_id = hits[0]["_id"] if len(hits) > 0 else None
+                tv = es.termvectors(index=index, id=doc_id, fields=["body"], term_statistics=True)
+                df=tv["term_vectors"]["body"]['terms'][term]['doc_freq']
+                ttf=tv["term_vectors"]["body"]['terms'][term]['ttf']
+                N=es.count(index=index)['count']
+                if df>0 :
+                    idf=np.log(N/df)
+                else :
+                    idf=0
+                query_idf[term]=idf*ttf
+                   
+            """
+            cnt=0
+            d[key]=[]
+            sort_words = sorted(query_idf.items(), key=lambda x: x[1], reverse=True)
+            print(sort_words)
+            for i in sort_words:
+                cnt+=1
+                if cnt<int(len(query_idf)*pourcent) :
+                    d[key].append(i[0])
+             """       
+            new= dict.fromkeys(d.keys(), [])
+            d[key]=nltk.pos_tag(d[key])
+            for p in d[key]:
+                if p[1] in ['NN','JJ','NNS','JJS']:
+                    new[key].append(p[0])
+            d[key]=" ".join(new[key])
+            
+    return d
+
+def rewrite_queries(query: Dict[str, str],load_ti: Dict[str, str]) -> Dict[str, str]:
+    
+
+    d=query
+    for i in load_ti.keys():
+        for q in query.keys():
+            if i in q :
+                d[q]=query[q]+" "+load_ti[i]
+    return d
+
 def reset_index(es: Elasticsearch) -> None:
     """Clears index"""
     if es.indices.exists(INDEX_NAME):
@@ -573,23 +643,31 @@ def load_qrels(filepath: str) -> Dict[str, List[str]]:
     file.close()
     return d
 
+
+
+
     es.indices.create(index=INDEX_NAME, body=INDEX_SETTINGS)
 if __name__ == "__main__":
     es = Elasticsearch(timeout=120)
+    
     query={}
     query_terms=[]
     query=load_queries("data/2020_manual_evaluation_topics_v1.0.json")
+    """
     reset_index(es)
     index_marco_documents(MARCO_FILE, es,INDEX_NAME)
     index_car_documents(CAR_FILE, es, INDEX_NAME)
     qrels=load_qrels("data/baselines/y2_manual_results_500.v1.0.run")
-    #reset_index(es)
-    #index_documents("data/collection.tsv", es,index=INDEX_NAME)
-    #print(es.termvectors(index=INDEX_NAME, id='1'))
-    query_terms=analyze_query(es, query['81_1'], INDEX_NAME) 
-   # print(query_terms)
+    """
+    titles=load_titles("data/automatic_evaluation_topics_annotated_v1.1.json",INDEX_NAME,es)
+    re_query=rewrite_queries(query, titles)
+
+    print(re_query)
+    print(nltk.pos_tag(["lives"]))
    
-    _, test = train_test_split(query)
-    rankings_ltr = get_rankings(trained_ltr_model(training_data(es,query,qrels)), test, query, es, index=INDEX_NAME, rerank=True)
-    print(rankings_ltr)
+    #_, test = train_test_split(query)
+    #rankings_ltr = get_rankings(trained_ltr_model(training_data(es,query,qrels)), test, query, es, index=INDEX_NAME, rerank=True)
+    #print(rankings_ltr)
+
+    
 

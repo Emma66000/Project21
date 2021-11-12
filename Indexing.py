@@ -368,6 +368,7 @@ def load_queries(filepath: str) -> Dict[str, str]:
 def load_titles(filepath: str,index:str,es: Elasticsearch, pourcent:int=0.5) -> Dict[str, str]:
     # TODO
     d={}
+    new={}
     key=""
     with open(filepath,"r", encoding="utf-8") as file :
         file=json.load(file)
@@ -375,13 +376,22 @@ def load_titles(filepath: str,index:str,es: Elasticsearch, pourcent:int=0.5) -> 
 
             key=str(n['number'])
             words = f"{n.get('title', '')} {n['turn'][0]['raw_utterance']}".lower()
-
             words= re.sub(r"[^\w]|_", " ", words).split()
-            d[key] = []
-            for term in words :
+            
+            new[key]=[]
+            
+            d[key]=nltk.pos_tag(words)
+            print(d[key])
+            for p in d[key]:
+                if p[1] in ['NN','JJ','NNS','JJS','VBG']:
+                    new[key].append(p[0]) 
+                    
+            d[key] = []        
+            for term in new[key] :
                 if term not in STOPWORDS and term not in d[key]:
                     d[key].append(term)
-                    
+              
+            """
             query_idf={}
             for term in d[key]:
                 hits = (es.search(index=index,query={"match": {"body": term}},_source=False,size=1,).get("hits", {}).get("hits", {}))
@@ -395,8 +405,8 @@ def load_titles(filepath: str,index:str,es: Elasticsearch, pourcent:int=0.5) -> 
                 else :
                     idf=0
                 query_idf[term]=idf*ttf
-                   
-            """
+        
+            
             cnt=0
             d[key]=[]
             sort_words = sorted(query_idf.items(), key=lambda x: x[1], reverse=True)
@@ -406,12 +416,8 @@ def load_titles(filepath: str,index:str,es: Elasticsearch, pourcent:int=0.5) -> 
                 if cnt<int(len(query_idf)*pourcent) :
                     d[key].append(i[0])
              """       
-            new= dict.fromkeys(d.keys(), [])
-            d[key]=nltk.pos_tag(d[key])
-            for p in d[key]:
-                if p[1] in ['NN','JJ','NNS','JJS']:
-                    new[key].append(p[0])
-            d[key]=" ".join(new[key])
+
+            d[key]=" ".join(d[key])
             
     return d
 
@@ -644,46 +650,88 @@ def load_qrels(filepath: str) -> Dict[str, List[str]]:
     return d
 
 
+def get_reciprocal_rank(
+    system_ranking: List[str], ground_truth: List[str]
+) -> float:
+    """Computes Reciprocal Rank (RR).
+
+    Args:
+        system_ranking: Ranked list of document IDs.
+        ground_truth: Set of relevant document IDs.
+
+    Returns:
+        RR (float).
+    """
+    for i, doc_id in enumerate(system_ranking):
+        if doc_id in ground_truth:
+            return 1 / (i + 1)
+    return 0
 
 
+def get_mean_eval_measure(
+    system_rankings: Dict[str, List[str]],
+    ground_truths: Dict[str, Set[str]],
+    eval_function: Callable,
+) -> float:
+    """Computes a mean of any evaluation measure over a set of queries.
+
+    Args:
+        system_rankings: Dict with query ID as key and a ranked list of document
+            IDs as value.
+        ground_truths: Dict with query ID as key and a set of relevant document
+            IDs as value.
+        eval_function: Callback function for the evaluation measure that mean is
+            computed over.
+
+    Returns:
+        Mean evaluation measure (float).
+    """
+    sum_score = 0
+    for query_id, system_ranking in system_rankings.items():
+        sum_score += eval_function(system_ranking, ground_truths[query_id])
+    return sum_score / len(system_rankings)
+
+def test_mean_rr(es, model,test, qrels, queries,index):
+
+    rankings_first_pass = get_rankings(None, test, queries, es, index, rerank=False)
+
+    # Final test: Mean reciprocal rank of LTR and first-pass rankings.
+    mrr_first_pass = get_mean_eval_measure(rankings_first_pass, qrels, get_reciprocal_rank)
+    rankings_ltr = get_rankings(model, test, queries, es, index, rerank=True)
+    mrr_ltr = get_mean_eval_measure(rankings_ltr, qrels, get_reciprocal_rank)
+    return (mrr_first_pass , mrr_ltr - mrr_first_pass)
+    
     es.indices.create(index=INDEX_NAME, body=INDEX_SETTINGS)
 if __name__ == "__main__":
     es = Elasticsearch(timeout=120)
     
     query={}
     query_terms=[]
-    query=load_queries("data/2020_manual_evaluation_topics_v1.0.json")
+    #query=load_queries("data/2020_manual_evaluation_topics_v1.0.json")
+    
+    re_query=load_queries("data/2020_automatic_evaluation_topics_v1.0.json")
+    
     """
     reset_index(es)
     index_marco_documents(MARCO_FILE, es,INDEX_NAME)
     index_car_documents(CAR_FILE, es, INDEX_NAME)
-    qrels=load_qrels("data/baselines/y2_manual_results_500.v1.0.run")
     """
-    titles=load_titles("data/automatic_evaluation_topics_annotated_v1.1.json",INDEX_NAME,es)
-    re_query=rewrite_queries(query, titles)
-
-    print(re_query)
-    print(nltk.pos_tag(["lives"]))
-   
-    #_, test = train_test_split(query)
-    #rankings_ltr = get_rankings(trained_ltr_model(training_data(es,query,qrels)), test, query, es, index=INDEX_NAME, rerank=True)
-    #print(rankings_ltr)
-
     
-    # reset_index(es)
-    # index_marco_documents(MARCO_FILE, es,INDEX_NAME)
-    # index_car_documents(CAR_FILE, es, INDEX_NAME)
     qrels=load_qrels("data/baselines/y2_manual_results_500.v1.0.run")
     
-    query_terms=analyze_query(es, query['81_1'], INDEX_NAME) 
-   # print(query_terms)
-   
-    _, test = train_test_split(query)
+    #titles=load_titles("data/automatic_evaluation_topics_annotated_v1.1.json",INDEX_NAME,es)
+    #re_query=rewrite_queries(query, titles)
+
+    #print(re_query)
+    #print(nltk.pos_tag(["lives"])) 
+
+    _, test = train_test_split(re_query)
     log.info("Test train complete")
-    trained_data = training_data(es,query,qrels)
+    trained_data = training_data(es,re_query,qrels)
     log.info("Train data complete")
     model = trained_ltr_model(trained_data)
     log.info("Train model complete")
-    rankings_ltr = get_rankings(model, test, query, es, index=INDEX_NAME, rerank=True)
-    print(rankings_ltr)
+    rankings_ltr = get_rankings(model, test, re_query, es, index=INDEX_NAME, rerank=True)
+    #print(rankings_ltr)
 
+    print(test_mean_rr(es, model,test, qrels, re_query,index=INDEX_NAME))

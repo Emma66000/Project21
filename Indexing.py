@@ -641,6 +641,21 @@ def load_qrels(filepath: str) -> Dict[str, List[str]]:
             cnt+=1
     return d
 
+def export_trec_result(ranking):
+    """Creates a trec_result.run file that contains the ranking in the TREC result file format.
+    <query-id> Q0 <document-id> <rank> <score> STANDARD
+
+    Args:
+        ranking (dict): dictionnary of queries and their ranking
+    """
+    with open("trec_result.run", "w") as f:
+        for query_id, ranks in ranking.items():
+            content_line = [query_id]
+            for r in ranks:
+                print(r)
+            f.write(" ".join(content_line)+"\n")
+
+
 if __name__ == "__main__":
     es = Elasticsearch(timeout=120)
     
@@ -671,7 +686,6 @@ if __name__ == "__main__":
     
     query_terms=analyze_query(es, query['81_1'], INDEX_NAME) 
    # print(query_terms)
-    print("ntm")
     log.info("Analyze query complete")
     _, test = train_test_split(query)
     log.info("Test train complete")
@@ -680,5 +694,6 @@ if __name__ == "__main__":
     model = trained_ltr_model(trained_data)
     log.info("Train model complete")
     rankings_ltr = get_rankings(model, test, query, es, index=INDEX_NAME, rerank=True)
-    print(rankings_ltr)
+    with open("result.txt", 'w') as f:
+        json.dump(rankings_ltr, f, indent=2)
 

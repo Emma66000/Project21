@@ -11,6 +11,7 @@ from sklearn.linear_model import LinearRegression
 from elasticsearch import Elasticsearch
 from trec_car.read_data import iter_paragraphs
 from threading import Thread
+import logging
 from tqdm import tqdm 
 import nltk
 from nltk.corpus import stopwords
@@ -54,7 +55,7 @@ FEATURES_QUERY_DOC = [
 FIELDS = ["body"]
 
 COLLECTION_SIZE = 8841823
-
+log = logging.getLogger("DAT640")
 
 def get_doc_term_freqs(
     es: Elasticsearch, doc_id: str, index: str = INDEX_NAME
@@ -640,7 +641,6 @@ def load_qrels(filepath: str) -> Dict[str, List[str]]:
                 d[key].append(ln[2])
             line = file.readline()
             cnt+=1
-    file.close()
     return d
 
 
@@ -670,4 +670,20 @@ if __name__ == "__main__":
     #print(rankings_ltr)
 
     
+    # reset_index(es)
+    # index_marco_documents(MARCO_FILE, es,INDEX_NAME)
+    # index_car_documents(CAR_FILE, es, INDEX_NAME)
+    qrels=load_qrels("data/baselines/y2_manual_results_500.v1.0.run")
+    
+    query_terms=analyze_query(es, query['81_1'], INDEX_NAME) 
+   # print(query_terms)
+   
+    _, test = train_test_split(query)
+    log.info("Test train complete")
+    trained_data = training_data(es,query,qrels)
+    log.info("Train data complete")
+    model = trained_ltr_model(trained_data)
+    log.info("Train model complete")
+    rankings_ltr = get_rankings(model, test, query, es, index=INDEX_NAME, rerank=True)
+    print(rankings_ltr)
 

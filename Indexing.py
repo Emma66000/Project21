@@ -51,9 +51,10 @@ FEATURES_QUERY_DOC = [
 FIELDS = ["body"]
 
 COLLECTION_SIZE = 8841823
-logging.basicConfig(filename='indexing.log', encoding='utf-8', level=logging.DEBUG)
-
 log = logging.getLogger()
+log.setLevel(logging.DEBUG)
+handler = logging.FileHandler('indexing.log','w','utf-8')
+log.addHandler(handler)
 
 def get_doc_term_freqs(
     es: Elasticsearch, doc_id: str, index: str = INDEX_NAME
@@ -379,7 +380,6 @@ def load_titles(filepath: str,index:str,es: Elasticsearch, pourcent:int=0.5) -> 
             new[key]=[]
             
             d[key]=nltk.pos_tag(words)
-            print(d[key])
             for p in d[key]:
                 if p[1] in ['NN','JJ','NNS','JJS','VBG']:
                     new[key].append(p[0]) 
@@ -525,9 +525,11 @@ def get_rankings(
             X=list()
             Y=list()
             for d_id in test_rankings[query_id]:
+                print("get rankings",d_id)
                 X.append(extract_features(query_terms, d_id, es, index))
                 
             for res in ltr.rank(X,test_rankings[query_id]):
+                print(res)
                 if res[1]>0:
                     Y.append(res[0])
             test_rankings[query_id]=Y
@@ -567,6 +569,7 @@ def prepare_ltr_training_data(
     y=list()
 
     for query in query_ids :
+        print(query)
         #print(query)
         query_terms = analyze_query(es, all_queries[query],index)
         
@@ -595,6 +598,7 @@ def train_test_split(queries):
 def training_data(es, queries, qrels):
     # Prepare training data with labels for learning-to-rank
     train, _ = train_test_split(queries)
+    print("train test split did")
     return prepare_ltr_training_data(
         train[:800], queries, qrels, es, index=INDEX_NAME
     )
@@ -660,6 +664,7 @@ def export_trec_result(ranking):
             for r in ranks:
                 print(r)
             f.write(" ".join(content_line)+"\n")
+            
 def get_reciprocal_rank(
     system_ranking: List[str], ground_truth: List[str]
 ) -> float:
@@ -697,28 +702,28 @@ def get_mean_eval_measure(
         Mean evaluation measure (float).
     """
     sum_score = 0
-    for query_id, system_ranking in system_rankings.items():
-        sum_score += eval_function(system_ranking, ground_truths[query_id])
-    return sum_score / len(system_rankings)
+    if len(system_rankings)!=0:
+        for query_id, system_ranking in system_rankings.items():
+            sum_score += eval_function(system_ranking, ground_truths[query_id])
+        return sum_score / len(system_rankings)
+    else :
+        return 0
 
-def test_mean_rr(es, model,test, qrels, queries,index):
+def test_mean_rr(es,index,test,trained_data,model,rankings_ltr,queries,qrels):
 
-    rankings_first_pass = get_rankings(None, test, queries, es, index, rerank=False)
-
-    # Final test: Mean reciprocal rank of LTR and first-pass rankings.
+    rankings_first_pass = get_rankings(None, test, queries, es, index=INDEX_NAME, rerank=False)
     mrr_first_pass = get_mean_eval_measure(rankings_first_pass, qrels, get_reciprocal_rank)
-    rankings_ltr = get_rankings(model, test, queries, es, index, rerank=True)
+
     mrr_ltr = get_mean_eval_measure(rankings_ltr, qrels, get_reciprocal_rank)
     return (mrr_first_pass , mrr_ltr - mrr_first_pass)
     
 if __name__ == "__main__":
     es = Elasticsearch(timeout=120)
     
-    query={}
-    query_terms=[]
+
     #query=load_queries("data/2020_manual_evaluation_topics_v1.0.json")
     
-    re_query=load_queries("data/2020_automatic_evaluation_topics_v1.0.json")
+    re_query=load_queries("data/2020_manual_evaluation_topics_v1.0.json")
     
     """
     reset_index(es)
@@ -728,17 +733,25 @@ if __name__ == "__main__":
     
     qrels=load_qrels("data/baselines/y2_manual_results_500.v1.0.run")
     
-    query_terms=analyze_query(es, query['81_1'], INDEX_NAME) 
    # print(query_terms)
     log.info("Analyze query complete")
-    _, test = train_test_split(query)
+    print("Analyse query complete")
+    _, test = train_test_split(re_query)
+    print("Test train complete")
     log.info("Test train complete")
     trained_data = training_data(es,re_query,qrels)
+    print("Train data complete")
     log.info("Train data complete")
     model = trained_ltr_model(trained_data)
+    print("Train model complete")
     log.info("Train model complete")
-    rankings_ltr = get_rankings(model, test, query, es, index=INDEX_NAME, rerank=True)
+    rankings_ltr = get_rankings(model, test, re_query, es, index=INDEX_NAME, rerank=True)
     with open("result.txt", 'w') as f:
         json.dump(rankings_ltr, f, indent=2)
 
-    print(test_mean_rr(es, model,test, qrels, re_query,index=INDEX_NAME))
+    print("Ranking complete")
+    export_trec_result(rankings_ltr)
+    print("trec result complete")
+    evaluate = test_mean_rr(es,INDEX_NAME,test,trained_data,model,rankings_ltr,re_query,qrels)
+    
+    print(evaluate)

@@ -340,7 +340,7 @@ def analyze_query(
         query_terms.append(t["token"])
     return query_terms
 
-def load_queries(filepath: str) -> Dict[str, str]:
+def load_queries(filepath: str,auto_trec:bool=True) -> Dict[str, str]:
     """Given a filepath, returns a dictionary with query IDs and corresponding
     query strings.
 
@@ -360,7 +360,12 @@ def load_queries(filepath: str) -> Dict[str, str]:
         for n in file:
             key=str(n['number'])+"_"
             for i in n['turn']:
-                d[key+str(i['number'])]=i['raw_utterance']
+                
+                if auto_trec :
+                    d[key+str(i['number'])]=i['automatic_rewritten_utterance']
+                else :
+                    d[key+str(i['number'])]=i['raw_utterance']
+                    
             key=""
     return d
 
@@ -721,16 +726,31 @@ if __name__ == "__main__":
     es = Elasticsearch(timeout=120)
     
 
-    #query=load_queries("data/2020_manual_evaluation_topics_v1.0.json")
+
     
-    re_query=load_queries("data/2020_manual_evaluation_topics_v1.0.json")
+
     
     """
     reset_index(es)
     index_marco_documents(MARCO_FILE, es,INDEX_NAME)
     index_car_documents(CAR_FILE, es, INDEX_NAME)
     """
+    auto_trec_rewrite = False
     
+    query=load_queries("data/2020_manual_evaluation_topics_v1.0.json",auto_trec=auto_trec_rewrite)
+    
+    if auto_trec_rewrite==False :
+        titles=load_titles("data/automatic_evaluation_topics_annotated_v1.1.json", INDEX_NAME,es)
+        re_query=rewrite_queries(query, titles)
+    else :
+        re_query=query
+
+    log.info("rewritting query complete")
+    print("rewritting query complete")
+    with open("rewritten_query.txt", 'w') as f:
+        json.dump(re_query, f, indent=2)
+            
+            
     qrels=load_qrels("data/baselines/y2_manual_results_500.v1.0.run")
     
    # print(query_terms)

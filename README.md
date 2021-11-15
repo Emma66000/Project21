@@ -17,4 +17,13 @@ For the baseline, you can download files from:
 https://github.com/daltonj/treccastweb/tree/master/2020/baselines
 
 
+## Qrels file
+
+https://trec.nist.gov/data/cast/2020qrels.txt
+
+## Trec eval tool
+
+https://trec.nist.gov/trec_eval/
+Unzip the folder in the Scripts folder and run make in it. This operation must be done under a Linux kernel (WSL/CGWIN).
+
 

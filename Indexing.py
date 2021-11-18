@@ -721,7 +721,7 @@ if __name__ == "__main__":
     index_marco_documents(MARCO_FILE, es,INDEX_NAME)
     index_car_documents(CAR_FILE, es, INDEX_NAME)
     """
-    raw_trec_utterance = False
+    raw_trec_utterance = True
     raw_query=load_queries("data/2020_manual_evaluation_topics_v1.0.json")
     
     if raw_trec_utterance==False :

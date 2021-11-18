@@ -342,7 +342,7 @@ def analyze_query(
         query_terms.append(t["token"])
     return query_terms
 
-def load_queries(filepath: str,auto_trec:bool=True) -> Dict[str, str]:
+def load_queries(filepath: str) -> Dict[str, str]:
     """Given a filepath, returns a dictionary with query IDs and corresponding
     query strings.
 
@@ -362,11 +362,7 @@ def load_queries(filepath: str,auto_trec:bool=True) -> Dict[str, str]:
         for n in file:
             key=str(n['number'])+"_"
             for i in n['turn']:
-                
-                if auto_trec :
-                    d[key+str(i['number'])]=i['automatic_rewritten_utterance']
-                else :
-                    d[key+str(i['number'])]=i['raw_utterance']
+                d[key+str(i['number'])]=i['raw_utterance']
                     
             key=""
     return d
@@ -625,37 +621,31 @@ def load_qrels(filepath: str) -> Dict[str, List[str]]:
 
     Example :
         
-    81_2 Q0 MARCO_1900267 54 0.0004690346249844879 PASBERT_manual_rewritten
-    81_2 Q0 MARCO_6519779 55 0.0004508823622018099 PASBERT_manual_rewritten
-    81_2 Q0 MARCO_7948855 56 0.0004076514160260558 PASBERT_manual_rewritten
-    81_2 Q0 MARCO_3942604 57 0.00038496305933222175 PASBERT_manual_rewritten
-    81_2 Q0 CAR_aee7be1029e24bf71f3a08d4a5593938bda63769 77 0.00020508274610619992 PASBERT_manual_rewritten
+    81_1 0 CAR_3add84966af079ed84e8b2fc412ad1dc27800127 1
+    81_1 0 CAR_5fa30140b395d7fead223e2bca8cc9b608bb51b4 0
+    81_1 0 CAR_aa2504ce1af15bace5d96daecf4ff491ffd39ae7 1
+    81_1 0 CAR_c35739b96d529a5dd18c97a95154670f7416c9ef 0
+    81_1 0 MARCO_1104225 2
     
-    Args:
-        filepath: String (constructed using os.path) of the filepath to a
-            file with queries.
 
-    Returns:
-        A dictionary with query IDs and a corresponding list of document IDs
-            for documents judged relevant to the query.
     """
     # TODO
     d={}
-    key=""
-    cnt=0
     with open(filepath,'r', encoding="utf-8") as file :
         line = file.readline()
         
         while line:  
-            #print(cnt)
-            ln=line.strip().replace('"', "").split(" ")
-            if ln[2][0:3]!="CAR" : 
-                key = ln[0]
-                if key not in d.keys():
-                    d[key]=list()
+            ln=line.strip().split(" ") 
+            key = ln[0]
+            
+            if key not in d.keys():
+                d[key]=list()
+                
+            if int(ln[3])>1:
                 d[key].append(ln[2])
+                
             line = file.readline()
-            cnt+=1
+            
     return d
 
 def export_trec_result(ranking):
@@ -731,15 +721,14 @@ if __name__ == "__main__":
     index_marco_documents(MARCO_FILE, es,INDEX_NAME)
     index_car_documents(CAR_FILE, es, INDEX_NAME)
     """
-    auto_trec_rewrite = False
+    raw_trec_utterance = False
+    raw_query=load_queries("data/2020_manual_evaluation_topics_v1.0.json")
     
-    query=load_queries("data/2020_manual_evaluation_topics_v1.0.json",auto_trec=auto_trec_rewrite)
-    
-    if auto_trec_rewrite==False :
+    if raw_trec_utterance==False :
         titles=load_titles("data/automatic_evaluation_topics_annotated_v1.1.json", INDEX_NAME,es)
-        re_query=rewrite_queries(query, titles)
+        re_query=rewrite_queries(raw_query, titles)
     else :
-        re_query=query
+        re_query=raw_query
 
     log.info("rewritting query complete")
     print("rewritting query complete")
@@ -747,6 +736,7 @@ if __name__ == "__main__":
         json.dump(re_query, f, indent=2)
             
     qrels=load_qrels(QRELS_FILE)
+    print(qrels)
     
     log.info("Analyze query complete")
     print("Analyse query complete")
@@ -765,9 +755,11 @@ if __name__ == "__main__":
         
 
     print("Ranking complete")
+    
     with open("result.txt", "r") as f:
         rankings_ltr = json.load(f)
         export_trec_result(rankings_ltr)
+        
     print("trec result complete")
     
     evaluate = test_mean_rr(es,INDEX_NAME,test,trained_data,model,rankings_ltr,re_query,qrels)

@@ -11,15 +11,17 @@ import logging
 from tqdm import tqdm 
 import nltk
 from nltk.corpus import stopwords
-
+import subprocess
 
 nltk.download("stopwords")
 nltk.download("averaged_perceptron_tagger")
 STOPWORDS = set(stopwords.words("english"))
 
+QRELS_FILE = "Scripts/2020qrels.txt"
 INDEX_NAME = "index_project"
 CAR_FILE = "data/paragraphCorpus/dedup.articles-paragraphs.cbor"
 MARCO_FILE = "data/collection.tsv"
+EXPORT_FILE = "data/trec_result.run"
 INDEX_SETTINGS = {
     "mappings":{
         "properties":{
@@ -536,7 +538,7 @@ def get_rankings(
             for res in ltr.rank(X,test_rankings[query_id]):
                 print(res)
                 if res[1]>0:
-                    Y.append(res[0])
+                    Y.append(res)
             test_rankings[query_id]=Y
             #print(query_id,test_rankings)
 
@@ -663,12 +665,12 @@ def export_trec_result(ranking):
     Args:
         ranking (dict): dictionnary of queries and their ranking
     """
-    with open("trec_result.run", "w") as f:
+    with open(EXPORT_FILE, "w") as f:
         for query_id, ranks in ranking.items():
-            content_line = [query_id]
-            for r in ranks:
-                print(r)
-            f.write(" ".join(content_line)+"\n")
+            content_line = [query_id, "Q0"]
+            for i, r in enumerate(ranks):
+                content_line.extend([r[0], i, r[1]])
+            f.write(" ".join([str(f) for f in content_line])+"\n")
             
 def get_reciprocal_rank(
     system_ranking: List[str], ground_truth: List[str]
@@ -724,12 +726,6 @@ def test_mean_rr(es,index,test,trained_data,model,rankings_ltr,queries,qrels):
     
 if __name__ == "__main__":
     es = Elasticsearch(timeout=120)
-    
-
-
-    
-
-    
     """
     reset_index(es)
     index_marco_documents(MARCO_FILE, es,INDEX_NAME)
@@ -750,10 +746,8 @@ if __name__ == "__main__":
     with open("rewritten_query.txt", 'w') as f:
         json.dump(re_query, f, indent=2)
             
-            
-    qrels=load_qrels("data/baselines/y2_manual_results_500.v1.0.run")
+    qrels=load_qrels(QRELS_FILE)
     
-   # print(query_terms)
     log.info("Analyze query complete")
     print("Analyse query complete")
     _, test = train_test_split(re_query)
@@ -770,8 +764,11 @@ if __name__ == "__main__":
         json.dump(rankings_ltr, f, indent=2)
 
     print("Ranking complete")
-    export_trec_result(rankings_ltr)
+    with open("result.txt", "r") as f:
+        rankings_ltr = json.load(f)
+        export_trec_result(rankings_ltr)
     print("trec result complete")
+    
     evaluate = test_mean_rr(es,INDEX_NAME,test,trained_data,model,rankings_ltr,re_query,qrels)
     
     print(evaluate)

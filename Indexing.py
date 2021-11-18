@@ -342,7 +342,7 @@ def analyze_query(
         query_terms.append(t["token"])
     return query_terms
 
-def load_queries(filepath: str) -> Dict[str, str]:
+def load_queries(filepath: str, auto_trec_utterance: bool=False) -> Dict[str, str]:
     """Given a filepath, returns a dictionary with query IDs and corresponding
     query strings.
 
@@ -362,7 +362,10 @@ def load_queries(filepath: str) -> Dict[str, str]:
         for n in file:
             key=str(n['number'])+"_"
             for i in n['turn']:
-                d[key+str(i['number'])]=i['raw_utterance']
+                if auto_trec_utterance:
+                    d[key+str(i['number'])]=i['automatic_rewritten_utterance']
+                else :
+                    d[key+str(i['number'])]=i['raw_utterance']
                     
             key=""
     return d
@@ -603,7 +606,7 @@ def training_data(es, queries, qrels):
     train, _ = train_test_split(queries)
     print("train test split did")
     return prepare_ltr_training_data(
-        train[:800], queries, qrels, es, index=INDEX_NAME
+        train, queries, qrels, es, index=INDEX_NAME
     )
     
     
@@ -699,6 +702,7 @@ def get_mean_eval_measure(
         Mean evaluation measure (float).
     """
     sum_score = 0
+
     if len(system_rankings)!=0:
         for query_id, system_ranking in system_rankings.items():
             sum_score += eval_function(system_ranking, ground_truths[query_id])
@@ -710,7 +714,8 @@ def test_mean_rr(es,index,test,trained_data,model,rankings_ltr,queries,qrels):
 
     rankings_first_pass = get_rankings(None, test, queries, es, index=INDEX_NAME, rerank=False)
     mrr_first_pass = get_mean_eval_measure(rankings_first_pass, qrels, get_reciprocal_rank)
-
+    print(rankings_ltr)
+    ranking_ltr = dict(k:doc[0] for k, doc in enumerate(rankings_ltr))
     mrr_ltr = get_mean_eval_measure(rankings_ltr, qrels, get_reciprocal_rank)
     return (mrr_first_pass , mrr_ltr - mrr_first_pass)
     
@@ -722,7 +727,9 @@ if __name__ == "__main__":
     index_car_documents(CAR_FILE, es, INDEX_NAME)
     """
     raw_trec_utterance = True
-    raw_query=load_queries("data/2020_manual_evaluation_topics_v1.0.json")
+    auto_trec_utterance = True
+    
+    raw_query=load_queries("data/2020_manual_evaluation_topics_v1.0.json",auto_trec_utterance)
     
     if raw_trec_utterance==False :
         titles=load_titles("data/automatic_evaluation_topics_annotated_v1.1.json", INDEX_NAME,es)
@@ -757,8 +764,8 @@ if __name__ == "__main__":
     print("Ranking complete")
     
     with open("result.txt", "r") as f:
-        rankings_ltr = json.load(f)
-        export_trec_result(rankings_ltr)
+        rankings_ltr_run = json.load(f)
+        export_trec_result(rankings_ltr_run)
         
     print("trec result complete")
     

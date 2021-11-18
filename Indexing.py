@@ -762,6 +762,7 @@ if __name__ == "__main__":
     rankings_ltr = get_rankings(model, test, re_query, es, index=INDEX_NAME, rerank=True)
     with open("result.txt", 'w') as f:
         json.dump(rankings_ltr, f, indent=2)
+        
 
     print("Ranking complete")
     with open("result.txt", "r") as f:
@@ -770,5 +771,7 @@ if __name__ == "__main__":
     print("trec result complete")
     
     evaluate = test_mean_rr(es,INDEX_NAME,test,trained_data,model,rankings_ltr,re_query,qrels)
+    with open("result.txt", 'a') as f:
+        json.dump(evaluate, f, indent=2)
     
     print(evaluate)

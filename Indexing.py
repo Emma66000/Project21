@@ -76,7 +76,7 @@ def get_doc_term_freqs(
     tv = es.termvectors(
         index=index, id=doc_id, fields=field, term_statistics=True
     )
-    if tv["_id"] != doc_id:
+    if tv["_id"] != doc_id or not tv['found']:
         return None
     if field not in tv["term_vectors"]:
         return None
@@ -191,7 +191,7 @@ def extract_query_doc_features(
         
         for term in query_terms:
             tv = es.termvectors(index=index, doc_type="_doc", id=doc_id, fields=field, term_statistics=True)
-            if tv["_id"] != doc_id:
+            if tv["_id"] != doc_id or not tv['found']:
                 continue
             if field not in tv["term_vectors"]:
                 continue
@@ -445,7 +445,6 @@ class PointWiseLTRModel:
     def __init__(self) -> None:
         """Instantiates LTR model with an instance of scikit-learn regressor.
         """
-        # TODO
         self.regressor = LinearRegression()
 
     def _train(self, X: List[List[float]], y: List[float]) -> None:
@@ -527,7 +526,6 @@ def get_rankings(
 
         # Rerank the first-pass result set using the LTR model.
         if rerank:
-            # TODO
             X=list()
             Y=list()
             for d_id in test_rankings[query_id]:
@@ -566,7 +564,6 @@ def prepare_ltr_training_data(
                 retrieved or relevant document.
             y: List of corresponding labels., 0 if not relevant and 1 if relevant from query_list
     """
-    # TODO
     #document from all_qrels
     #search avec es to find top 100 doc
     #extract features with query
@@ -632,7 +629,6 @@ def load_qrels(filepath: str) -> Dict[str, List[str]]:
     
 
     """
-    # TODO
     d={}
     with open(filepath,'r', encoding="utf-8") as file :
         line = file.readline()
@@ -663,6 +659,7 @@ def export_trec_result(ranking):
             content_line = [query_id, "Q0"]
             for i, r in enumerate(ranks):
                 content_line.extend([r[0], i, r[1]])
+            content_line.append("STANDARD")
             f.write(" ".join([str(f) for f in content_line])+"\n")
             
 def get_reciprocal_rank(
@@ -721,11 +718,11 @@ def test_mean_rr(es,index,test,trained_data,model,rankings_ltr,queries,qrels):
     
 if __name__ == "__main__":
     es = Elasticsearch(timeout=120)
-    """
-    reset_index(es)
-    index_marco_documents(MARCO_FILE, es,INDEX_NAME)
-    index_car_documents(CAR_FILE, es, INDEX_NAME)
-    """
+    
+    # reset_index(es)
+    # index_marco_documents(MARCO_FILE, es,INDEX_NAME)
+    # index_car_documents(CAR_FILE, es, INDEX_NAME)
+    
     raw_trec_utterance = True
     auto_trec_utterance = True
     

@@ -714,9 +714,15 @@ def test_mean_rr(es,index,test,trained_data,model,rankings_ltr,queries,qrels):
 
     rankings_first_pass = get_rankings(None, test, queries, es, index=INDEX_NAME, rerank=False)
     mrr_first_pass = get_mean_eval_measure(rankings_first_pass, qrels, get_reciprocal_rank)
-    print(rankings_ltr)
-    rankings_ltr = {k:doc[0] for k, doc in enumerate(rankings_ltr)}
-    mrr_ltr = get_mean_eval_measure(rankings_ltr, qrels, get_reciprocal_rank)
+
+    d={}
+    for query_id in rankings_ltr.keys():
+        if query_id not in d:
+            d[query_id]=list()
+        for doc in rankings_ltr.get(query_id,[]):
+            d[query_id].append(doc[0])
+    print(d)
+    mrr_ltr = get_mean_eval_measure(d, qrels, get_reciprocal_rank)
     return (mrr_first_pass , mrr_ltr - mrr_first_pass)
     
 if __name__ == "__main__":

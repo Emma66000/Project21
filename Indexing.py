@@ -705,7 +705,7 @@ def get_mean_eval_measure(
 
     if len(system_rankings)!=0:
         for query_id, system_ranking in system_rankings.items():
-            sum_score += eval_function(system_ranking, ground_truths[query_id])
+            sum_score += eval_function(system_ranking, ground_truths.get(query_id,[]))
         return sum_score / len(system_rankings)
     else :
         return 0

@@ -83,7 +83,6 @@ def extract_query_features(
             Dictionary with keys 'query_length', 'query_sum_idf',
                 'query_max_idf', and 'query_avg_idf'.
     """
-    # TODO
 
     d={}
     d['query_length']=len(query_terms)
@@ -130,7 +129,6 @@ def extract_doc_features(
         Returns:
             Dictionary with keys 'doc_length_body'.
     """
-    # TODO
     d={}
     d["doc_length_body"]=0
 
@@ -439,8 +437,10 @@ def get_mean_eval_measure(
     else :
         return 0
 
-def test_mean_rr(es,index,test,trained_data,model,rankings_ltr,queries,qrels):
+def test_mean_rr(es : Elasticsearch ,index:str ,test,trained_data,model,rankings_ltr,queries,qrels):
 
+    """test the mean evaluation measure over a set of queries and compare it with the mean evaluation after re ranking
+    """
     rankings_first_pass = get_rankings(None, test, queries, es, index=INDEX_NAME, rerank=False)
     mrr_first_pass = get_mean_eval_measure(rankings_first_pass, qrels, get_reciprocal_rank)
 

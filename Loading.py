@@ -9,6 +9,10 @@ nltk.download("averaged_perceptron_tagger")
 STOPWORDS = set(stopwords.words("english"))
 
 def load_titles(filepath: str) -> Dict[str, str]:
+    """Loads the titles (Preprocessed first query+Title of the query), context of each query, from a file.
+    """
+    
+    
     d={}
     new={}
     key=""
@@ -47,8 +51,9 @@ def load_qrels(filepath: str) -> Dict[str, List[str]]:
     81_1 0 CAR_c35739b96d529a5dd18c97a95154670f7416c9ef 0
     81_1 0 MARCO_1104225 2
     
-
+    Returns : A dictionnary with query_turn as keys and list of Id of relevant document for this query_turn
     """
+    
     d={}
     with open(filepath,'r', encoding="utf-8") as file :
         line = file.readline()
@@ -71,11 +76,11 @@ def load_queries(filepath: str, auto_trec_utterance: bool=False) -> Dict[str, st
     """Given a filepath, returns a dictionary with query IDs and corresponding
     query strings.
 
-
     Args:
         filepath: String (constructed using os.path) of the filepath to a
         file with queries.
-
+        
+        auto_trec_utterance: boolean that indicate if we want to directly load the automatic rewritten queries of trec to test
     Returns:
         A dictionary with query IDs and corresponding query strings.
     """

@@ -31,8 +31,15 @@ def export_trec_result(ranking):
         f.write("\n".join(lines))
             
 def rewrite_queries(query: Dict[str, str],load_ti: Dict[str, str]) -> Dict[str, str]:
+    """ Concatenate the Titles, wich gives the context, to every query to rewrite them
+    Args:
+        query (dict): dictionnary of queries_turn as keys and their content
+        load_ti (dict): dictionnary of queries as keys and context as content
+        
+    Returns:
+        A dictionnary with the queries_turn as keys and the rewritten queries as content
+    """
     
-
     d=query
     for i in load_ti.keys():
         for q in query.keys():

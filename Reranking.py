@@ -4,7 +4,7 @@ from typing import Callable, Dict, List, Set, Tuple
 import numpy as np
 import random
 from sklearn.linear_model import LinearRegression
-
+import json
 class PointWiseLTRModel:
     def __init__(self) -> None:
         """Instantiates LTR model with an instance of scikit-learn regressor.
@@ -300,10 +300,12 @@ def get_rankings(
         hits = es.search(
             index=index, q=" ".join(query_terms), _source=True, size=100
         )["hits"]["hits"]
-        test_rankings[query_id] = [hit["_id"] for hit in hits]
+        print(json.dumps(hits))
 
         # Rerank the first-pass result set using the LTR model.
         if rerank:
+            test_rankings[query_id] = [hit["_id"] for hit in hits]
+
             X=list()
             Y=list()
             for d_id in test_rankings[query_id]:
@@ -316,6 +318,9 @@ def get_rankings(
                     Y.append(res)
             test_rankings[query_id]=Y
             #print(query_id,test_rankings)
+        else:
+            test_rankings[query_id] = [(hit["_id"], hit['_score']) for hit in hits]
+
 
     return test_rankings
 

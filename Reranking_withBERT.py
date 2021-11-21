@@ -499,7 +499,7 @@ def bert_rerank(re_query,es,rankings,index):
         scores = [(q, s.item()) for q,s in zip(d_ids, loss)]
         
         rankings = list(sorted(scores, key = lambda x: x[1]))
-        reranking[q_id] = [rk[0] for rk in rankings]
+        reranking[q_id] = [[rk[0],rk[1]] for rk in rankings]
     return reranking
 
 

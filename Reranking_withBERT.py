@@ -489,16 +489,17 @@ def bert_rerank(re_query,es,rankings,index):
     reranking = {}
     for q_id in data.keys(): #re_query:
         q_string = data[q_id]["query"]
-        d_strings = [x[1] for x in  data[q_id]["document"]]
+        d_strings = [x[1][:min(700,len(x[1]))] for x in  data[q_id]["document"]]
         d_ids = [x[0] for x in  data[q_id]["document"]]
 
         bert_input = tokenizer(text = [q_string]*len(d_strings), text_pair=d_strings, return_tensors='pt', padding = True)
-        loss = bert_model(**bert_input).loss
-        print(loss)
-        scoredict ={doc_id:score for doc_id,score in zip(d_ids, loss)}
+        loss = bert_model(**bert_input).logits[:,0]
         
-        rankings = list(sorted(scoredict.items(), key = lambda x: x[1]))
-        reranking[q_id] = rankings
+        #scoredict ={doc_id:score.items() for doc_id,score in zip(d_ids, loss)}
+        scores = [(q, s.item()) for q,s in zip(d_ids, loss)]
+        
+        rankings = list(sorted(scores, key = lambda x: x[1]))
+        reranking[q_id] = [rk[0] for rk in rankings]
     return reranking
 
 

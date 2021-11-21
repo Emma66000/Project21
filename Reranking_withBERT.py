@@ -5,6 +5,11 @@ import numpy as np
 import random
 from sklearn.linear_model import LinearRegression
 from sklearn.neural_network import MLPRegressor
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+
+tokenizer = AutoTokenizer.from_pretrained("amberoad/bert-multilingual-passage-reranking-msmarco")
+bert_model = AutoModelForSequenceClassification.from_pretrained("amberoad/bert-multilingual-passage-reranking-msmarco")
+
 
 class PointWiseLTRModel:
     def __init__(self) -> None:
@@ -315,7 +320,7 @@ def get_rankings(
                     Y.append(res)
             test_rankings[query_id]=Y
             #print(query_id,test_rankings)
-
+        
     return test_rankings
 
 def prepare_ltr_training_data(
@@ -476,4 +481,24 @@ def load_querydoc_bert(re_query,es,rankings,index):
     return d
 
 
+
+def bert_rerank(re_query,es,rankings,index):
+    data = load_querydoc_bert(re_query, es, rankings, index)
+    
+    
+    reranking = {}
+    for q_id in data.keys(): #re_query:
+        q_string = data[q_id]["query"]
+        d_strings = [x[1] for x in  data[q_id]["document"]]
+        d_ids = [x[0] for x in  data[q_id]["document"]]
+
+        bert_input = tokenizer(text = [q_string]*len(d_strings), text_pair=d_strings, return_tensors='pt', padding = True)
+        loss = bert_model(**bert_input).loss
+        print(loss)
+        scoredict ={doc_id:score for doc_id,score in zip(d_ids, loss)}
         
+        rankings = list(sorted(scoredict.items(), key = lambda x: x[1]))
+        reranking[q_id] = rankings
+    return reranking
+
+

@@ -119,8 +119,6 @@ def extract_query_features(
     if query_terms :
         d['query_avg_idf']=d['query_sum_idf']/len(query_terms)
     
-
-    
     return d
 
 
@@ -484,22 +482,17 @@ def load_querydoc_bert(re_query,es,rankings,index):
 
 def bert_rerank(re_query,es,rankings,index):
     data = load_querydoc_bert(re_query, es, rankings, index)
-    
-    
     reranking = {}
-    for q_id in data.keys(): #re_query:
+    for q_id in data.keys(): 
         q_string = data[q_id]["query"]
         d_strings = [x[1][:min(700,len(x[1]))] for x in  data[q_id]["document"]]
         d_ids = [x[0] for x in  data[q_id]["document"]]
-
         bert_input = tokenizer(text = [q_string]*len(d_strings), text_pair=d_strings, return_tensors='pt', padding = True)
         loss = bert_model(**bert_input).logits[:,0]
-        
-        #scoredict ={doc_id:score.items() for doc_id,score in zip(d_ids, loss)}
         scores = [(q, s.item()) for q,s in zip(d_ids, loss)]
-        
         rankings = list(sorted(scores, key = lambda x: x[1]))
         reranking[q_id] = [[rk[0],rk[1]] for rk in rankings]
+
     return reranking
 
 

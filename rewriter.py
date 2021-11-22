@@ -7,27 +7,12 @@ from constants import TOTAL_COLLECTION_SIZE, INDEX_NAME
 from Loading import load_queries, load_titles
 
 
-
-
 def analyze_query(
     es: Elasticsearch, query: str, index: str = "myindex"
 ) -> List[str]:
-    """Analyzes a query with respect to the relevant index.
-
-    Args:
-        es: Elasticsearch object instance.
-        query: String of query terms.
-        index: Name of the index with respect to which the query is analyzed.
-
-    Returns:
-        A list of query terms that exist in the specified field among the
-        documents in the index.
-    """
     tokens = es.indices.analyze(index=INDEX_NAME, body={"text": query})["tokens"]
     query_terms = []
     for t in sorted(tokens, key=lambda x: x["position"]):
-        # Use a boolean query to find at least one document that contains the
-        # term.
         hits = es.search(index=index,query={"match": {"body": t["token"]}},_source=False,size=100,)["hits"]["hits"]
         doc_id = hits[0]["_id"] if len(hits) > 0 else None
         if doc_id is None:

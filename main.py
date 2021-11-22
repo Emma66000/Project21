@@ -4,7 +4,6 @@ import json
 from typing import Dict
 from elasticsearch import Elasticsearch
 from Indexing import *
-#from Reranking import *'
 from Reranking_withBERT import *
 from Loading import *
 from os import path, truncate

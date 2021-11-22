@@ -36,6 +36,17 @@ Unzip the folder in the Scripts folder.
 Then compile the program : ```make``` 
 This operation must be done under a Linux kernel (WSL/CGWIN).
 
+## Requirements
+python >= 3.7
+Elasticsearch
+Numpy
+Sklearn
+nltk
+transformers
+re
+json
+
+
 ## Project files:
 constants.py : File defining global variables
 indexing.py : tools to idnex car and marco documents in elasticsearch index

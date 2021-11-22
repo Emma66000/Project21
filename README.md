@@ -37,14 +37,14 @@ Then compile the program : ```make```
 This operation must be done under a Linux kernel (WSL/CGWIN).
 
 ## Requirements
-python >= 3.7
-Elasticsearch
-Numpy
-Sklearn
-nltk
-transformers
-re
-json
+* python >= 3.7
+* Elasticsearch
+* Numpy
+* Sklearn
+* nltk
+* transformers
+* re
+* json
 
 
 ## Project files:

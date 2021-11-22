@@ -300,7 +300,7 @@ def get_rankings(
         hits = es.search(
             index=index, q=" ".join(query_terms), _source=True, size=100
         )["hits"]["hits"]
-        print(json.dumps(hits))
+        #print(json.dumps(hits))
 
         # Rerank the first-pass result set using the LTR model.
         if rerank:

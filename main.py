@@ -49,7 +49,7 @@ if __name__ == "__main__":
     parser.add_argument("--raw-trec-utterance", default=False, nargs='?', type=bool, const=True, help="If mentionned, uses raw queries instead of calculated rewritten queries")
     parser.add_argument("--auto-trec-utterance", default=False, nargs='?', type=bool, const=True, help="If mentionned, uses raw queries instead of trec automatic rewritten queries")
     parser.add_argument("--no-rerank", default=False, nargs='?', type=bool, const=True, help="If mentionned, don't rerank files, just export results if a result.txt file exists")
-    parser.add_argument("--BERT?-rerank", default=True, nargs='?', type=bool, const=True, help="If mentionned, don't rerank files, just export results if a result.txt file exists")
+    parser.add_argument("--BERT-rerank", default=True, nargs='?', type=bool, const=True, help="If mentionned, don't rerank files, just export results if a result.txt file exists")
     parser.add_argument("--print-rewritten", default=False, nargs='?', type=bool, const=True, help="If mentionned,write rewritten queries in a file")
     args = parser.parse_args()
     es = Elasticsearch(timeout=120)
@@ -82,7 +82,7 @@ if __name__ == "__main__":
         log.info("Train model complete")
         rankings_ltr = get_rankings(model, test, re_query, es, index=INDEX_NAME, rerank=False)
 
-        if 'BERT?_rerank':
+        if args.BERT_rerank:
             print('BERT TIME')
             rankings_ltr = bert_rerank(re_query, es, rankings_ltr, index=INDEX_NAME)
 

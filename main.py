@@ -4,15 +4,17 @@ import json
 from typing import Dict
 from elasticsearch import Elasticsearch
 from Indexing import *
-from Reranking import *
+from Reranking_withBERT import *
 from Loading import *
 from os import path, truncate
 from argparse import ArgumentParser
+from rewriter import Qrewriter
 
 log = logging.getLogger("Project")
 log.setLevel(logging.DEBUG)
 handler = logging.FileHandler('indexing.log','w','utf-8')
 log.addHandler(handler)
+
 
 
 def export_trec_result(ranking):
@@ -30,22 +32,16 @@ def export_trec_result(ranking):
                 lines.append(" ".join([str(f) for f in content_line]))
         f.write("\n".join(lines))
             
-def rewrite_queries(query: Dict[str, str],load_ti: Dict[str, str]) -> Dict[str, str]:
-    """ Concatenate the Titles, wich gives the context, to every query to rewrite them
-    Args:
-        query (dict): dictionnary of queries_turn as keys and their content
-        load_ti (dict): dictionnary of queries as keys and context as content
-        
-    Returns:
-        A dictionnary with the queries_turn as keys and the rewritten queries as content
-    """
+def rewrite_queries(es, queries: Dict[str, str],load_ti: Dict[str, str]) -> Dict[str, str]:
+    rw = Qrewriter(queries,load_ti)
+
+    d = {}
+    for query_id in queries:
+        d[query_id] = rw.rewrite_query_with_context(es, query_id)
     
-    d=query
-    for i in load_ti.keys():
-        for q in query.keys():
-            if i in q :
-                d[q]=query[q]+" "+load_ti[i]
     return d
+
+
 
 if __name__ == "__main__":
     parser = ArgumentParser("TREC CAST 2020", description="Conversationnal assistance project")
@@ -53,6 +49,7 @@ if __name__ == "__main__":
     parser.add_argument("--raw-trec-utterance", default=False, nargs='?', type=bool, const=True, help="If mentionned, uses raw queries instead of calculated rewritten queries")
     parser.add_argument("--auto-trec-utterance", default=False, nargs='?', type=bool, const=True, help="If mentionned, uses raw queries instead of trec automatic rewritten queries")
     parser.add_argument("--no-rerank", default=False, nargs='?', type=bool, const=True, help="If mentionned, don't rerank files, just export results if a result.txt file exists")
+    parser.add_argument("--BERT?-rerank", default=True, nargs='?', type=bool, const=True, help="If mentionned, don't rerank files, just export results if a result.txt file exists")
     parser.add_argument("--print-rewritten", default=False, nargs='?', type=bool, const=True, help="If mentionned,write rewritten queries in a file")
     args = parser.parse_args()
     es = Elasticsearch(timeout=120)
@@ -65,7 +62,7 @@ if __name__ == "__main__":
         
         if not args.raw_trec_utterance:
             titles=load_titles("data/automatic_evaluation_topics_annotated_v1.1.json")
-            re_query=rewrite_queries(raw_query, titles)
+            re_query=rewrite_queries(es, raw_query, titles)
         else :
             re_query=raw_query
 
@@ -83,7 +80,13 @@ if __name__ == "__main__":
         log.info("Train data complete")
         model = trained_ltr_model(trained_data)
         log.info("Train model complete")
-        rankings_ltr = get_rankings(model, test, re_query, es, index=INDEX_NAME, rerank=True)
+        rankings_ltr = get_rankings(model, test, re_query, es, index=INDEX_NAME, rerank=False)
+
+        if 'BERT?_rerank':
+            print('BERT TIME')
+            rankings_ltr = bert_rerank(re_query, es, rankings_ltr, index=INDEX_NAME)
+
+
         with open("result.txt", 'w') as f:
             json.dump(rankings_ltr, f, indent=2)
         log.info("Ranking complete")
@@ -103,7 +106,6 @@ if __name__ == "__main__":
         log.info("Results export complete")
     else:
         log.warning("no result file result.txt found")
-    
     
     
     

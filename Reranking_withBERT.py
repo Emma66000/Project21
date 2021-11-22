@@ -4,12 +4,19 @@ from typing import Callable, Dict, List, Set, Tuple
 import numpy as np
 import random
 from sklearn.linear_model import LinearRegression
-import json
+from sklearn.neural_network import MLPRegressor
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+
+tokenizer = AutoTokenizer.from_pretrained("amberoad/bert-multilingual-passage-reranking-msmarco")
+bert_model = AutoModelForSequenceClassification.from_pretrained("amberoad/bert-multilingual-passage-reranking-msmarco")
+
+
 class PointWiseLTRModel:
     def __init__(self) -> None:
         """Instantiates LTR model with an instance of scikit-learn regressor.
         """
-        self.regressor = LinearRegression()
+        # self.regressor = LinearRegression()
+        self.regressor = MLPRegressor()
 
     def _train(self, X: List[List[float]], y: List[float]) -> None:
         """Trains an LTR model.
@@ -111,8 +118,6 @@ def extract_query_features(
     if query_terms :
         d['query_avg_idf']=d['query_sum_idf']/len(query_terms)
     
-
-    
     return d
 
 
@@ -186,13 +191,10 @@ def extract_query_doc_features(
                     d['unique_query_terms_in_body']+=1
                         
         
-        
         if TF['body'] :  
             d['sum_TF_body']=sum(TF['body'])
             d['max_TF_body']=max(TF['body'])
             d['avg_TF_body']=sum(TF['body'])/len(query_terms)
-
-
 
     return d
 
@@ -457,4 +459,45 @@ def test_mean_rr(es : Elasticsearch ,index:str ,test,trained_data,model,rankings
             d[query_id].append(doc[0])
     print(d)
     mrr_ltr = get_mean_eval_measure(d, qrels, get_reciprocal_rank)
-    return (mrr_first_pass , mrr_ltr - mrr_first_pass)
+    return (mrr_first_pass, mrr_ltr - mrr_first_pass)
+
+def load_query_bert(re_query):
+    d={}
+    for query_id in re_query.keys():
+        if query_id not in d:
+            d[query_id]=""
+        d[query_id]="query: "+re_query[query_id]
+
+    return d
+
+def load_querydoc_bert(re_query,es,rankings,index):
+    d={}
+    query_bert = load_query_bert(re_query)
+    for query_id in rankings.keys():
+        if query_id not in d:
+            d[query_id]={}
+        d[query_id]["query"]=query_bert[query_id]
+        d[query_id]["document"]=[]
+        for doc_id in rankings.get(query_id):   
+            res=es.get(index,doc_id)["_source"]["body"]
+            d[query_id]["document"].append((doc_id,"passage: "+res))
+    return d
+
+
+
+def bert_rerank(re_query,es,rankings,index):
+    data = load_querydoc_bert(re_query, es, rankings, index)
+    reranking = {}
+    for q_id in data.keys(): 
+        q_string = data[q_id]["query"]
+        d_strings = [x[1][:min(700,len(x[1]))] for x in  data[q_id]["document"]]
+        d_ids = [x[0] for x in  data[q_id]["document"]]
+        bert_input = tokenizer(text = [q_string]*len(d_strings), text_pair=d_strings, return_tensors='pt', padding = True)
+        loss = bert_model(**bert_input).logits[:,0]
+        scores = [(q, s.item()) for q,s in zip(d_ids, loss)]
+        rankings = list(sorted(scores, key = lambda x: x[1]))
+        reranking[q_id] = [[rk[0],rk[1]] for rk in rankings]
+
+    return reranking
+
+

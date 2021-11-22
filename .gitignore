@@ -135,3 +135,4 @@ data/baselines
 *.tsv
 eval.txt
 result.txt
+Scripts/trec_eval-9.0.7

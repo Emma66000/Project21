@@ -4,8 +4,8 @@ import nltk
 import json
 import re
 
-nltk.download("stopwords")
-nltk.download("averaged_perceptron_tagger")
+# nltk.download("stopwords")
+# nltk.download("averaged_perceptron_tagger")
 STOPWORDS = set(stopwords.words("english"))
 
 def load_titles(filepath: str) -> Dict[str, str]:

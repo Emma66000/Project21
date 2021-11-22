@@ -133,3 +133,5 @@ data/baselines
 *.xz
 *.run
 *.tsv
+eval.txt
+result.txt

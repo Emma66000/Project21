@@ -26,7 +26,7 @@ def export_trec_result(ranking):
         lines = []
         for query_id, ranks in ranking.items():
             for i, r in enumerate(ranks):
-                content_line = [query_id, "Q0", r[0],i,  r[1], "STANDARD"]
+                content_line = [query_id, "Q0", r[0],i,  -1*r[1], "STANDARD"]
                 lines.append(" ".join([str(f) for f in content_line]))
         f.write("\n".join(lines))
             
